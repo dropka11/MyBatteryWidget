@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch: # İstediğimiz zaman manuel tetiklemek için
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,8 +19,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Uyumlu Gradle Sürümünü Ayarla (Hata Çözümü)
+      run: gradle wrapper --gradle-version 8.4
+
     - name: Gradle ile APK Derle
-      run: gradle assembleDebug
+      run: ./gradlew assembleDebug
 
     - name: APK'yı Çıktı Olarak Kaydet
       uses: actions/upload-artifact@v4
