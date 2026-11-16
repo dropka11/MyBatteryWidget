@@ -1,4 +1,4 @@
-package com.senin.paketin // Kendi paket adın olduğundan emin ol
+package com.senin.paketin
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.os.BatteryManager
 import android.os.Build
@@ -40,14 +41,18 @@ class BatteryService : Service() {
             .setSmallIcon(android.R.drawable.ic_lock_idle_charging)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
-        startForeground(1, notification)
+        
+        // Android 14+ (API 34) için zorunlu Servis Tipi beyanı
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1, notification)
+        }
 
-        // Servis başlar başlamaz ilk güncellemeyi yap ve döngüyü başlat
         handler.post(updateRunnable)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // MIUI ve One UI'da agresif pil optimizasyonuna karşı servisi hayatta tutar
         return START_STICKY 
     }
 
