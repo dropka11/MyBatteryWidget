@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.senin.paketin">
+    
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14 için özel arka plan zorunluluğu -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Bildirim çubuğunda tutunabilmesi için -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
-        android:label="Battery Widget"
+        android:label="My Battery Widget"
         android:theme="@android:style/Theme.NoTitleBar">
+        
         <receiver android:name=".BatteryWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
-        <service android:name=".BatteryService" android:exported="false" />
+        
+        <!-- Çökmeyi engelleyen foregroundServiceType eklentisi -->
+        <service android:name=".BatteryService" 
+            android:exported="false" 
+            android:foregroundServiceType="specialUse" />
     </application>
 </manifest>
