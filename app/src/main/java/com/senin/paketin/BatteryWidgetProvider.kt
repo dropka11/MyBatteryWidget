@@ -1,4 +1,4 @@
-package com.senin.paketin // Kendi paket adınla değiştir
+package com.senin.paketin
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -8,12 +8,15 @@ import android.os.Build
 
 class BatteryWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        // Widget ekranda var oldukça Foreground servisi başlatır
-        val serviceIntent = Intent(context, BatteryService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            val serviceIntent = Intent(context, BatteryService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
