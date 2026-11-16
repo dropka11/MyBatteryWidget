@@ -1,10 +1,9 @@
-package com.senin.paketin // Kendi paket adınla değiştir
+package com.senin.paketin // Kendi paket adın olduğundan emin ol
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.appwidget.AppWidgetManager
-import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -12,7 +11,9 @@ import android.content.IntentFilter
 import android.graphics.Color
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
@@ -20,16 +21,13 @@ import androidx.core.graphics.ColorUtils
 
 class BatteryService : Service() {
 
-    private val batteryReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-            
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-            val percentage = (level * 100 / scale.toFloat()).toInt()
+    private val handler = Handler(Looper.getMainLooper())
+    private val updateInterval = 60000L // 60 saniye
 
-            updateWidget(context, percentage, isCharging)
+    private val updateRunnable = object : Runnable {
+        override fun run() {
+            updateBatteryStatus()
+            handler.postDelayed(this, updateInterval)
         }
     }
 
@@ -37,26 +35,52 @@ class BatteryService : Service() {
         super.onCreate()
         createNotificationChannel()
         val notification = NotificationCompat.Builder(this, "BATTERY_WIDGET_CHANNEL")
-            .setContentTitle("Pil Göstergesi Aktif")
-            .setContentText("Widget pil durumunu dinliyor.")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_charging) // Sistemin varsayılan ikonu
+            .setContentTitle("Battery Widget Aktif")
+            .setContentText("Pil seviyesi takip ediliyor.")
+            .setSmallIcon(android.R.drawable.ic_lock_idle_charging)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
         startForeground(1, notification)
 
-        // Pil değişimlerini dinlemeye başla
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        registerReceiver(batteryReceiver, filter)
+        // Servis başlar başlamaz ilk güncellemeyi yap ve döngüyü başlat
+        handler.post(updateRunnable)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // MIUI ve One UI'da agresif pil optimizasyonuna karşı servisi hayatta tutar
+        return START_STICKY 
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(batteryReceiver)
+        handler.removeCallbacks(updateRunnable)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun updateWidget(context: Context, percentage: Int, isCharging: Boolean) {
+    private fun updateBatteryStatus() {
+        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+            this.registerReceiver(null, ifilter)
+        }
+
+        val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        
+        val percentage = if (level != -1 && scale != -1) {
+            (level * 100 / scale.toFloat()).toInt()
+        } else {
+            -1
+        }
+
+        if (percentage != -1) {
+            updateWidgetUI(this, percentage, isCharging)
+        }
+    }
+
+    private fun updateWidgetUI(context: Context, percentage: Int, isCharging: Boolean) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val componentName = ComponentName(context, BatteryWidgetProvider::class.java)
         val views = RemoteViews(context.packageName, R.layout.widget_battery)
@@ -71,21 +95,20 @@ class BatteryService : Service() {
     }
 
     private fun getBatteryColor(percentage: Int, isCharging: Boolean): Int {
-        if (isCharging) return Color.parseColor("#2196F3") // Şarjda mavi
+        if (isCharging) return Color.parseColor("#2196F3")
 
         return if (percentage >= 50) {
             val fraction = (percentage - 50) / 50.0f
-            ColorUtils.blendARGB(Color.parseColor("#FFC107"), Color.parseColor("#4CAF50"), fraction) // Sarı -> Yeşil
+            ColorUtils.blendARGB(Color.parseColor("#FFC107"), Color.parseColor("#4CAF50"), fraction)
         } else {
             val fraction = percentage / 50.0f
-            ColorUtils.blendARGB(Color.parseColor("#F44336"), Color.parseColor("#FFC107"), fraction) // Kırmızı -> Sarı
+            ColorUtils.blendARGB(Color.parseColor("#F44336"), Color.parseColor("#FFC107"), fraction)
         }
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel("BATTERY_WIDGET_CHANNEL", "Pil Widget Servisi", NotificationManager.IMPORTANCE_MIN)
-            channel.description = "Widget için arka plan pil takibi"
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
