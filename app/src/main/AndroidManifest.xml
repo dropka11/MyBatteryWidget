@@ -3,9 +3,7 @@
     package="com.senin.paketin">
     
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Android 14 için özel arka plan zorunluluğu -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- Bildirim çubuğunda tutunabilmesi için -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -20,9 +18,13 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
         
-        <!-- Çökmeyi engelleyen foregroundServiceType eklentisi -->
         <service android:name=".BatteryService" 
             android:exported="false" 
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse">
+            <!-- Android 14+ ve One UI 8.0'ın çökmeyi önlemek için zorunlu kıldığı etiket -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="battery_level_tracking" />
+        </service>
     </application>
 </manifest>
